@@ -5,4 +5,4 @@ compatibility_date = "2025-01-01"
 [[d1_databases]]
 binding = "DB"
 database_name = "family-travel-tracker"
-database_id = "REPLACE_WITH_YOUR_D1_DATABASE_ID"
+database_id = "9aead501-334c-4256-9626-71de9b543ab6"
