@@ -3,6 +3,8 @@ import { format } from "date-fns";
 import type { BookingCard } from "../types";
 import { Button } from "./Button";
 import { Modal } from "./Modal";
+import { Input } from "./Input";
+import { api } from "../lib/api";
 
 function cardKey(card: BookingCard): string {
   return `${card.booking_id}:${card.traveler_id}:${card.kind}:${card.label}`;
@@ -18,6 +20,10 @@ export function FlightSummaryModal({
   onClose: () => void;
 }) {
   const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [slug, setSlug] = useState("");
+  const [creating, setCreating] = useState(false);
+  const [createError, setCreateError] = useState<string | null>(null);
+  const [shareUrl, setShareUrl] = useState<string | null>(null);
   const dates = useMemo(() => [...new Set(cards.map(card => card.start_date))].sort(), [cards]);
   const sortedCards = useMemo(
     () => [...cards].sort((a, b) => `${a.start_date} ${a.segments[0]?.dep_time ?? ""}`.localeCompare(`${b.start_date} ${b.segments[0]?.dep_time ?? ""}`)),
@@ -39,7 +45,33 @@ export function FlightSummaryModal({
 
   function close() {
     setSelected(new Set());
+    setSlug("");
+    setCreateError(null);
+    setShareUrl(null);
     onClose();
+  }
+
+  async function createLink() {
+    try {
+      setCreating(true);
+      setCreateError(null);
+      const summary = await api.summaries.create(slug, rows.map(({ card, segment }) => ({
+        passenger: card.traveler_name,
+        flight_number: segment.flight_number,
+        airline: segment.airline,
+        dep_airport: segment.dep_airport,
+        arr_airport: segment.arr_airport,
+        dep_date: segment.dep_date,
+        dep_time: segment.dep_time,
+        arr_date: segment.arr_date,
+        arr_time: segment.arr_time,
+      })));
+      setShareUrl(`${window.location.origin}${window.location.pathname}#/summary/${summary.slug}`);
+    } catch (error: any) {
+      setCreateError(error.message ?? "Could not create summary link.");
+    } finally {
+      setCreating(false);
+    }
   }
 
   return (
@@ -95,7 +127,6 @@ export function FlightSummaryModal({
               <div className="font-semibold">Summary</div>
               <div className="text-sm text-slate-400">{rows.length} selected flight {rows.length === 1 ? "segment" : "segments"}, ordered by departure</div>
             </div>
-            {rows.length > 0 && <Button size="sm" onClick={() => window.print()}>Print summary</Button>}
           </div>
           {rows.length === 0 ? (
             <div className="mt-4 rounded-xl border border-dashed border-white/15 p-6 text-center text-sm text-slate-400">
@@ -120,6 +151,26 @@ export function FlightSummaryModal({
                   ))}
                 </tbody>
               </table>
+            </div>
+          )}
+          {rows.length > 0 && (
+            <div className="mt-5 rounded-xl border border-sky-400/20 bg-sky-500/5 p-4">
+              <div className="font-semibold">Create a shareable link</div>
+              <div className="mt-1 text-sm text-slate-400">Choose a memorable URL slug. The shared summary is saved as a snapshot, so later booking edits will not change it.</div>
+              <div className="mt-4 flex flex-col sm:flex-row items-end gap-3">
+                <div className="flex-1 w-full">
+                  <Input label="Link slug" placeholder="summer-trip-2026" value={slug} onChange={event => { setSlug(event.target.value.toLowerCase().replace(/\s+/g, "-")); setShareUrl(null); }} />
+                </div>
+                <Button variant="primary" disabled={creating || !slug} onClick={createLink}>{creating ? "Creating…" : "Create link"}</Button>
+              </div>
+              {createError && <div className="mt-3 text-sm text-rose-300">{createError}</div>}
+              {shareUrl && (
+                <div className="mt-4 rounded-lg border border-emerald-400/20 bg-emerald-500/10 p-3">
+                  <div className="text-xs font-mono text-emerald-200">LINK READY</div>
+                  <a className="mt-1 block break-all text-sky-300 hover:underline" href={shareUrl}>{shareUrl}</a>
+                  <Button className="mt-3" size="sm" onClick={() => navigator.clipboard.writeText(shareUrl)}>Copy link</Button>
+                </div>
+              )}
             </div>
           )}
         </section>

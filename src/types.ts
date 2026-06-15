@@ -105,3 +105,21 @@ export type BookingCard = {
 };
 
 export type ApiError = { error: string };
+
+export type SharedSummaryRow = {
+  passenger: string;
+  flight_number: string;
+  airline: string;
+  dep_airport: string;
+  arr_airport: string;
+  dep_date: string;
+  dep_time: string;
+  arr_date: string;
+  arr_time: string;
+};
+
+export type SharedSummary = {
+  slug: string;
+  rows: SharedSummaryRow[];
+  created_at: string;
+};
