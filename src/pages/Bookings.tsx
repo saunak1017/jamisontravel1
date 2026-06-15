@@ -7,6 +7,7 @@ import { BookingCard as BookingCardComp } from "../components/BookingCard";
 import { BookingModal } from "../components/BookingModal";
 import { CalendarMonth } from "../components/CalendarMonth";
 import { CancelTravelerModal } from "../components/CancelTravelerModal";
+import { FlightSummaryModal } from "../components/FlightSummaryModal";
 import { format } from "date-fns";
 
 function isFlownCard(card: BookingCard): boolean {
@@ -31,6 +32,7 @@ export function Bookings() {
 
   const [cancelOpen, setCancelOpen] = useState(false);
   const [cancelCard, setCancelCard] = useState<BookingCard | null>(null);
+  const [summaryOpen, setSummaryOpen] = useState(false);
 
   const [calMonth, setCalMonth] = useState<string>(() => format(new Date(), "yyyy-MM"));
 
@@ -88,6 +90,7 @@ export function Bookings() {
           <div className="flex items-center gap-2">
             <Button variant={view === "list" ? "primary" : "ghost"} size="sm" onClick={() => setView("list")}>List</Button>
             <Button variant={view === "calendar" ? "primary" : "ghost"} size="sm" onClick={() => setView("calendar")}>Calendar</Button>
+            <Button size="sm" onClick={() => setSummaryOpen(true)}>Create summary</Button>
             <Button variant="primary" size="sm" onClick={openNew}>+ Add booking</Button>
           </div>
         </div>
@@ -153,6 +156,8 @@ export function Bookings() {
         onClose={() => { setCancelOpen(false); setCancelCard(null); }}
         onSaved={load}
       />
+
+      <FlightSummaryModal open={summaryOpen} cards={filtered} onClose={() => setSummaryOpen(false)} />
     </div>
   );
 }

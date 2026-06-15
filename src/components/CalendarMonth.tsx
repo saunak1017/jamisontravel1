@@ -1,6 +1,7 @@
-import React, { useMemo } from "react";
+import React, { useMemo, useState } from "react";
 import type { BookingCard } from "../types";
 import { addDays, endOfMonth, endOfWeek, format, isSameMonth, startOfMonth, startOfWeek } from "date-fns";
+import { Modal } from "./Modal";
 
 type Item = {
   date: string; // YYYY-MM-DD
@@ -19,6 +20,7 @@ export function CalendarMonth({
   onPickBooking: (bookingId: string) => void;
 }) {
   const first = startOfMonth(new Date(monthISO + "-01T00:00:00"));
+  const [openDate, setOpenDate] = useState<string | null>(null);
   const gridStart = startOfWeek(first, { weekStartsOn: 0 });
   const gridEnd = endOfWeek(endOfMonth(first), { weekStartsOn: 0 });
 
@@ -76,13 +78,37 @@ export function CalendarMonth({
                   </button>
                 ))}
                 {items.length > 3 && (
-                  <div className="text-[10px] font-mono text-slate-400">+ {items.length - 3} more</div>
+                  <button
+                    className="text-[10px] font-mono text-sky-300 hover:text-sky-200 hover:underline"
+                    onClick={() => setOpenDate(iso)}
+                  >
+                    + {items.length - 3} more
+                  </button>
                 )}
               </div>
             </div>
           );
         })}
       </div>
+
+      <Modal
+        open={openDate !== null}
+        title={openDate ? `Flights — ${format(new Date(openDate + "T00:00:00"), "MMMM d, yyyy")}` : "Flights"}
+        onClose={() => setOpenDate(null)}
+      >
+        <div className="space-y-3">
+          {(openDate ? itemsByDate.get(openDate) ?? [] : []).map((it) => (
+            <button
+              key={it.id}
+              className="w-full text-left rounded-xl border border-white/10 bg-black/20 hover:bg-white/10 px-4 py-3 transition"
+              onClick={() => onPickBooking(it.id.split(":")[0])}
+            >
+              <div className="font-medium">{it.label}</div>
+              <div className="mt-1 text-sm font-mono text-slate-400">{it.sub || "Flight number not set"}</div>
+            </button>
+          ))}
+        </div>
+      </Modal>
     </div>
   );
 }
