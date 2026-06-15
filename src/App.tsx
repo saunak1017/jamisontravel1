@@ -1,22 +1,32 @@
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { Bookings } from "./pages/Bookings";
 import { Admin } from "./pages/Admin";
 import { Button } from "./components/Button";
+import { SharedSummary } from "./pages/SharedSummary";
 
-type Route = "bookings" | "admin";
+type Route = "bookings" | "admin" | "summary";
+
+function currentRoute(): { route: Route; slug: string } {
+  const hash = (window.location.hash || "#/bookings").replace("#/", "");
+  if (hash.startsWith("summary/")) return { route: "summary", slug: hash.slice("summary/".length) };
+  return { route: hash === "admin" ? "admin" : "bookings", slug: "" };
+}
 
 export default function App() {
-  const [route, setRoute] = useState<Route>(() => {
-    const hash = (window.location.hash || "#/bookings").replace("#/", "");
-    return (hash === "admin" ? "admin" : "bookings");
-  });
+  const [location, setLocation] = useState(currentRoute);
 
-  function nav(to: Route) {
-    setRoute(to);
+  useEffect(() => {
+    const onHashChange = () => setLocation(currentRoute());
+    window.addEventListener("hashchange", onHashChange);
+    return () => window.removeEventListener("hashchange", onHashChange);
+  }, []);
+
+  function nav(to: "bookings" | "admin") {
+    setLocation({ route: to, slug: "" });
     window.location.hash = `#/${to}`;
   }
 
-  const title = useMemo(() => route === "bookings" ? "Bookings" : "Admin", [route]);
+  const title = useMemo(() => location.route === "bookings" ? "Bookings" : location.route === "admin" ? "Admin" : "Shared summary", [location.route]);
 
   return (
     <div className="min-h-screen bg-board-bg text-slate-100">
@@ -33,15 +43,15 @@ export default function App() {
           </div>
 
           <div className="flex items-center gap-2">
-            <Button size="sm" variant={route === "bookings" ? "primary" : "ghost"} onClick={() => nav("bookings")}>Bookings</Button>
-            <Button size="sm" variant={route === "admin" ? "primary" : "ghost"} onClick={() => nav("admin")}>Admin</Button>
+            <Button size="sm" variant={location.route === "bookings" ? "primary" : "ghost"} onClick={() => nav("bookings")}>Bookings</Button>
+            <Button size="sm" variant={location.route === "admin" ? "primary" : "ghost"} onClick={() => nav("admin")}>Admin</Button>
           </div>
         </div>
       </header>
 
       <main className="mx-auto max-w-6xl px-4 py-6">
         <div className="mb-4 text-xs font-mono text-slate-500">{title}</div>
-        {route === "bookings" ? <Bookings /> : <Admin />}
+        {location.route === "bookings" ? <Bookings /> : location.route === "admin" ? <Admin /> : <SharedSummary slug={location.slug} />}
       </main>
 
       <footer className="mx-auto max-w-6xl px-4 py-8 text-xs font-mono text-slate-500">

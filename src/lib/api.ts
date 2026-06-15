@@ -1,4 +1,4 @@
-import type { ApiError, Booking, BookingCard, Traveler } from "../types";
+import type { ApiError, Booking, BookingCard, SharedSummary, SharedSummaryRow, Traveler } from "../types";
 
 async function req<T>(path: string, init?: RequestInit): Promise<T> {
   const res = await fetch(path, {
@@ -37,5 +37,10 @@ export const api = {
     remove: (id: string) => req<{ ok: true }>(`/api/bookings/${id}`, { method: "DELETE" }),
     setTravelerStatus: (bookingId: string, travelerId: string, payload: unknown) =>
       req<{ ok: true }>(`/api/bookings/${bookingId}/traveler/${travelerId}`, { method: "PUT", body: JSON.stringify(payload) }),
+  },
+  summaries: {
+    get: (slug: string) => req<SharedSummary>(`/api/summaries/${encodeURIComponent(slug)}`),
+    create: (slug: string, rows: SharedSummaryRow[]) =>
+      req<SharedSummary>("/api/summaries", { method: "POST", body: JSON.stringify({ slug, rows }) }),
   },
 };
