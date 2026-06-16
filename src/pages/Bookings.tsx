@@ -9,7 +9,7 @@ import { CalendarMonth } from "../components/CalendarMonth";
 import { CancelTravelerModal } from "../components/CancelTravelerModal";
 import { FlightSummaryModal } from "../components/FlightSummaryModal";
 import { FlightEventList, PickupDropoffPanel, TimelinePanel, TodayWeekPanel, WeekPanel } from "../components/TravelPanels";
-import { flightEvents } from "../lib/flightEvents";
+import { flightEvents, pickupDropoffEvents } from "../lib/flightEvents";
 import { format } from "date-fns";
 
 function isFlownCard(card: BookingCard): boolean {
@@ -68,6 +68,7 @@ export function Bookings() {
   const calCards = useMemo(() => filtered, [filtered]);
   const events = useMemo(() => flightEvents(calCards, showAll), [calCards, showAll]);
   const dynamicEvents = useMemo(() => flightEvents(cards.filter(c => !isFlownCard(c)), false), [cards]);
+  const pickupEvents = useMemo(() => pickupDropoffEvents(calCards, showAll), [calCards, showAll]);
 
   function openNew() {
     setEditingBookingId(null);
@@ -180,7 +181,7 @@ export function Bookings() {
           ) : view === "timeline" ? (
             <TimelinePanel events={events} onPick={openEdit} />
           ) : (
-            <PickupDropoffPanel events={events.filter(e => e.traveler_status !== "canceled")} onPick={openEdit} />
+            <PickupDropoffPanel events={pickupEvents.filter(e => e.traveler_status !== "canceled")} onPick={openEdit} />
           )}
         </div>
       </div>

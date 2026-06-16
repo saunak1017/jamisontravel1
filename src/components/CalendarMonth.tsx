@@ -32,8 +32,8 @@ export function CalendarMonth({
       arr.push({
         date: e.segment.dep_date,
         id: e.id,
-        label: `${e.segment.dep_time} · ${e.traveler_name} · ${e.segment.dep_airport}→${e.segment.arr_airport}`,
-        sub: `${e.segment.flight_number || "—"} ${e.segment.airline || ""}${e.trip_name ? ` · ${e.trip_name}` : ""}`,
+        label: `${e.segment.dep_time} · ${e.traveler_name} · ${e.display_route}`,
+        sub: `${e.segments.map(segment => segment.flight_number || "—").join("/")} · ${e.route_label}${e.trip_name ? ` · ${e.trip_name}` : ""}`,
         color: eventColor(e.traveler_color),
       });
       map.set(e.segment.dep_date, arr);
