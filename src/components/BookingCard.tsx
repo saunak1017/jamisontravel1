@@ -12,10 +12,12 @@ function costLabel(cost: TravelerCost): string {
 export function BookingCard({
   card,
   onEdit,
+  onDuplicate,
   onCancel,
 }: {
   card: Card;
   onEdit: (bookingId: string) => void;
+  onDuplicate: (bookingId: string) => void;
   onCancel: (card: Card) => void;
 }) {
   const [open, setOpen] = useState(false);
@@ -82,6 +84,7 @@ export function BookingCard({
               {card.traveler_status !== "canceled" && (
                 <Button size="sm" variant="danger" onClick={() => onCancel(card)}>Cancel / Refund</Button>
               )}
+              <Button size="sm" variant="ghost" onClick={() => onDuplicate(card.booking_id)}>Duplicate</Button>
               <Button size="sm" variant="ghost" onClick={() => onEdit(card.booking_id)}>Edit booking</Button>
             </div>
           </div>

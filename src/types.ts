@@ -5,6 +5,13 @@ export type TravelerStatus = "active" | "canceled";
 export type Traveler = {
   id: string;
   name: string;
+  color?: string | null;
+  created_at: string;
+};
+
+export type Trip = {
+  id: string;
+  name: string;
   created_at: string;
 };
 
@@ -68,6 +75,8 @@ export type Booking = {
   ticket_issue_date: string; // YYYY-MM-DD
   ticket_end_date: string; // YYYY-MM-DD
   cost_note?: string | null; // optional free text for anything else
+  trip_id?: string | null;
+  trip_name?: string | null;
   created_at: string;
   updated_at: string;
   travelers: Array<{
@@ -85,7 +94,10 @@ export type BookingCard = {
   booking_id: string;
   traveler_id: string;
   traveler_name: string;
+  traveler_color?: string | null;
   traveler_status: TravelerStatus;
+  trip_id?: string | null;
+  trip_name?: string | null;
   cost: TravelerCost;
   refund?: RefundInfo | null;
   kind: LegKind;
@@ -105,3 +117,22 @@ export type BookingCard = {
 };
 
 export type ApiError = { error: string };
+
+export type SharedSummaryRow = {
+  passenger: string;
+  trip_name?: string | null;
+  flight_number: string;
+  airline: string;
+  dep_airport: string;
+  arr_airport: string;
+  dep_date: string;
+  dep_time: string;
+  arr_date: string;
+  arr_time: string;
+};
+
+export type SharedSummary = {
+  slug: string;
+  rows: SharedSummaryRow[];
+  created_at: string;
+};

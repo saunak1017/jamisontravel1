@@ -3,7 +3,7 @@ import { Modal } from "./Modal";
 import { Button } from "./Button";
 import { Input } from "./Input";
 import { Select } from "./Select";
-import type { Booking, BookingType, PaymentType, Traveler } from "../types";
+import type { Booking, BookingType, PaymentType, Traveler, Trip } from "../types";
 import { api } from "../lib/api";
 import { clampMinutes, localIso, minutesBetween, toTimeValue } from "../lib/time";
 import { format } from "date-fns";
@@ -46,6 +46,7 @@ function computeLayovers(segments: SegmentDraft[]) {
     const a = segments[i];
     const b = segments[i + 1];
     const airport = (a.arr_airport || "").toUpperCase();
+    if (airport !== (b.dep_airport || "").toUpperCase()) continue;
     const mins = clampMinutes(minutesBetween(localIso(a.arr_date, a.arr_time), localIso(b.dep_date, b.dep_time)));
     lays.push({ between_index: i, airport, minutes: mins });
   }
@@ -85,15 +86,18 @@ export function BookingModal({
   onClose,
   onSaved,
   bookingId,
+  duplicateFromId,
 }: {
   open: boolean;
   onClose: () => void;
   onSaved: () => void;
   bookingId?: string | null;
+  duplicateFromId?: string | null;
 }) {
   const todayISO = useMemo(() => format(new Date(), "yyyy-MM-dd"), []);
   const [loading, setLoading] = useState(false);
   const [travelers, setTravelers] = useState<Traveler[]>([]);
+  const [trips, setTrips] = useState<Trip[]>([]);
   const [error, setError] = useState<string | null>(null);
 
   const [bookingType, setBookingType] = useState<BookingType>("roundtrip");
@@ -102,6 +106,7 @@ export function BookingModal({
   const [classSecondary, setClassSecondary] = useState("");
   const [ticketIssueDate, setTicketIssueDate] = useState(todayISO);
   const [ticketEndDate, setTicketEndDate] = useState(todayISO);
+  const [tripId, setTripId] = useState("");
 
   const [selectedTravelerIds, setSelectedTravelerIds] = useState<string[]>([]);
   const [paymentType, setPaymentType] = useState<PaymentType>("cash");
@@ -122,10 +127,12 @@ export function BookingModal({
     setError(null);
     (async () => {
       try {
-        const t = await api.travelers.list();
+        const [t, tripList] = await Promise.all([api.travelers.list(), api.trips.list()]);
         setTravelers(t);
-        if (bookingId) {
-          const b = await api.bookings.get(bookingId);
+        setTrips(tripList);
+        const sourceId = bookingId || duplicateFromId;
+        if (sourceId) {
+          const b = await api.bookings.get(sourceId);
           setExisting(b);
           setBookingType(b.booking_type);
           setPnr(b.pnr ?? "");
@@ -133,8 +140,9 @@ export function BookingModal({
           setClassSecondary(b.class_secondary ?? "");
           setTicketIssueDate(b.ticket_issue_date ?? todayISO);
           setTicketEndDate(b.ticket_end_date ?? todayISO);
+          setTripId(b.trip_id ?? "");
 
-          setSelectedTravelerIds(b.travelers.map(x => x.traveler_id));
+          setSelectedTravelerIds(duplicateFromId ? [] : b.travelers.map(x => x.traveler_id));
 
           // payment type can differ per traveler; for editing we default to first traveler values
           const first = b.travelers[0]?.cost;
@@ -174,6 +182,7 @@ export function BookingModal({
           setClassSecondary("");
           setTicketIssueDate(todayISO);
           setTicketEndDate(todayISO);
+          setTripId("");
           setSelectedTravelerIds([]);
           setPaymentType("cash");
           setCashUsd(0); setMilesUsed(0); setFeesUsd(0);
@@ -186,7 +195,7 @@ export function BookingModal({
         setError(e.message ?? "Failed to load data");
       }
     })();
-  }, [open, bookingId, todayISO]);
+  }, [open, bookingId, duplicateFromId, todayISO]);
 
   // Adjust legs sections when bookingType changes (only for new/quick edits)
   useEffect(() => {
@@ -299,6 +308,7 @@ export function BookingModal({
         class_secondary: classSecondary.trim() || null,
         ticket_issue_date: ticketIssueDate,
         ticket_end_date: ticketEndDate,
+        trip_id: tripId || null,
         travelers: travelerCosts,
         legs: legs.map(l => ({
           kind: l.kind,
@@ -339,7 +349,7 @@ export function BookingModal({
   }, [legs]);
 
   return (
-    <Modal open={open} title={bookingId ? "Edit Booking" : "Add Booking"} onClose={onClose}>
+    <Modal open={open} title={bookingId ? "Edit Booking" : duplicateFromId ? "Duplicate Booking" : "Add Booking"} onClose={onClose}>
       {error && (
         <div className="mb-4 rounded-xl border border-rose-400/20 bg-rose-500/10 px-4 py-3 text-sm text-rose-100">
           {error}
@@ -363,6 +373,10 @@ export function BookingModal({
               </div>
               <Input label="Class" placeholder="Upper Class / J / Y" value={classMain} onChange={(e) => setClassMain(e.target.value)} />
               <Input label="Secondary class (optional)" placeholder="e.g., domestic feeder" value={classSecondary} onChange={(e) => setClassSecondary(e.target.value)} />
+              <Select label="Trip" value={tripId} onChange={(e) => setTripId(e.target.value)}>
+                <option value="">No trip</option>
+                {trips.map(trip => <option key={trip.id} value={trip.id}>{trip.name}</option>)}
+              </Select>
               <Select label="Payment type" value={paymentType} onChange={(e) => setPaymentType(e.target.value as PaymentType)}>
                 <option value="cash">Cash</option>
                 <option value="miles">Miles</option>
@@ -513,7 +527,7 @@ export function BookingModal({
             <div className="text-xs font-mono text-slate-400 mb-2">NOTES</div>
             <div className="text-sm text-slate-300">
               • Times are stored as the scheduled local times you enter.<br/>
-              • Layovers are auto-calculated using the arrival→next departure times at the same airport.<br/>
+              • Layovers are only auto-calculated when the next segment departs from the prior arrival airport.<br/>
               • After saving, you can cancel per traveler with refund details.
             </div>
           </div>

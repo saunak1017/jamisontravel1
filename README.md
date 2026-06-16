@@ -63,6 +63,8 @@ database_id = "PASTE_YOUR_DATABASE_ID_HERE"
 ### 2) Run the migration
 ```bash
 wrangler d1 execute family-travel-tracker --file=migrations/001_init.sql
+wrangler d1 execute family-travel-tracker --file=migrations/002_shared_summaries.sql
+wrangler d1 execute family-travel-tracker --file=migrations/003_trips_and_traveler_colors.sql
 ```
 
 ### 3) Deploy on Cloudflare Pages via GitHub

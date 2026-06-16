@@ -9,6 +9,7 @@ type Payload = {
   ticket_issue_date: string;
   ticket_end_date: string;
   cost_note?: string | null;
+  trip_id?: string | null;
   travelers: Array<{
     traveler_id: string;
     cost: { payment_type: "cash"; cash_usd: number } | { payment_type: "miles"; miles_used: number; fees_usd: number };
@@ -53,6 +54,7 @@ function buildLayovers(segments: Payload["legs"][number]["segments"]) {
     const a = segs[i];
     const b = segs[i+1];
     const airport = upperIata(a.arr_airport);
+    if (airport !== upperIata(b.dep_airport)) continue;
     const mins = minutesBetween(localIso(a.arr_date, a.arr_time), localIso(b.dep_date, b.dep_time));
     lays.push({ between_index: i, airport, minutes: mins });
   }
@@ -86,7 +88,7 @@ export const onRequestPut: PagesFunction = async (ctx) => {
   const updated_at = nowISO();
 
   await db.prepare(
-    "UPDATE bookings SET booking_type=?, pnr=?, class_main=?, class_secondary=?, ticket_issue_date=?, ticket_end_date=?, cost_note=?, updated_at=? WHERE id=?"
+    "UPDATE bookings SET booking_type=?, pnr=?, class_main=?, class_secondary=?, ticket_issue_date=?, ticket_end_date=?, cost_note=?, trip_id=?, updated_at=? WHERE id=?"
   ).bind(
     p.booking_type,
     (p.pnr || "").trim(),
@@ -95,6 +97,7 @@ export const onRequestPut: PagesFunction = async (ctx) => {
     p.ticket_issue_date,
     p.ticket_end_date,
     p.cost_note ?? null,
+    p.trip_id || null,
     updated_at,
     id
   ).run();
