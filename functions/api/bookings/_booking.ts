@@ -2,13 +2,16 @@ import { flightNumbersFromSegments, routeSummaryFromSegments, upperIata } from "
 
 export async function loadBooking(db: D1Database, bookingId: string) {
   const booking = await db.prepare(
-    "SELECT * FROM bookings WHERE id = ?"
+    `SELECT b.*, tr.name as trip_name
+       FROM bookings b
+       LEFT JOIN trips tr ON tr.id = b.trip_id
+      WHERE b.id = ?`
   ).bind(bookingId).first<any>();
 
   if (!booking) return null;
 
   const travelers = await db.prepare(
-    `SELECT bt.traveler_id, t.name as traveler_name, bt.status, bt.payment_type, bt.cash_usd, bt.miles_used, bt.fees_usd,
+    `SELECT bt.traveler_id, t.name as traveler_name, t.color as traveler_color, bt.status, bt.payment_type, bt.cash_usd, bt.miles_used, bt.fees_usd,
             bt.refund_method, bt.refund_amount_usd, bt.refund_notes, bt.canceled_at
        FROM booking_travelers bt
        LEFT JOIN travelers t ON t.id = bt.traveler_id
@@ -79,6 +82,7 @@ export async function loadBooking(db: D1Database, bookingId: string) {
     return {
       traveler_id: r.traveler_id,
       traveler_name: r.traveler_name ?? "(unknown)",
+      traveler_color: r.traveler_color ?? null,
       status: r.status,
       cost,
       refund,
@@ -89,6 +93,8 @@ export async function loadBooking(db: D1Database, bookingId: string) {
   return {
     id: booking.id,
     booking_type: booking.booking_type,
+    trip_id: booking.trip_id ?? null,
+    trip_name: booking.trip_name ?? null,
     pnr: booking.pnr,
     class_main: booking.class_main,
     class_secondary: booking.class_secondary,
@@ -112,14 +118,15 @@ export async function loadCards(db: D1Database, opts: { travelerId?: string; inc
   }
 
   const rows = await db.prepare(
-    `SELECT b.id as booking_id, b.booking_type, b.pnr, b.class_main, b.class_secondary, b.ticket_issue_date, b.ticket_end_date, b.updated_at,
-            bt.traveler_id, t.name as traveler_name, bt.status as traveler_status,
+    `SELECT b.id as booking_id, b.booking_type, b.trip_id, tr.name as trip_name, b.pnr, b.class_main, b.class_secondary, b.ticket_issue_date, b.ticket_end_date, b.updated_at,
+            bt.traveler_id, t.name as traveler_name, t.color as traveler_color, bt.status as traveler_status,
             bt.payment_type, bt.cash_usd, bt.miles_used, bt.fees_usd,
             bt.refund_method, bt.refund_amount_usd, bt.refund_notes,
             l.id as leg_id, l.kind, l.label, l.sort_index as leg_sort
        FROM bookings b
        JOIN booking_travelers bt ON bt.booking_id = b.id
        LEFT JOIN travelers t ON t.id = bt.traveler_id
+       LEFT JOIN trips tr ON tr.id = b.trip_id
        JOIN legs l ON l.booking_id = b.id
       WHERE ${where}
       ORDER BY b.updated_at DESC, t.name COLLATE NOCASE, l.sort_index`
@@ -177,7 +184,10 @@ export async function loadCards(db: D1Database, opts: { travelerId?: string; inc
       booking_id: r.booking_id,
       traveler_id: r.traveler_id,
       traveler_name: r.traveler_name ?? "(unknown)",
+      traveler_color: r.traveler_color ?? null,
       traveler_status: r.traveler_status,
+      trip_id: r.trip_id ?? null,
+      trip_name: r.trip_name ?? null,
       cost,
       refund,
       kind: r.kind,
