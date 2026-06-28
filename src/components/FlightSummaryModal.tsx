@@ -1,10 +1,11 @@
 import React, { useMemo, useState } from "react";
 import { format } from "date-fns";
-import type { BookingCard } from "../types";
+import type { BookingCard, SharedSummaryRow } from "../types";
 import { Button } from "./Button";
 import { Modal } from "./Modal";
 import { Input } from "./Input";
 import { api } from "../lib/api";
+import { airportDisplay, flightDisplay, groupSummaryRows, timeDisplay } from "../lib/summaryBoard";
 
 function cardKey(card: BookingCard): string {
   return `${card.booking_id}:${card.traveler_id}:${card.kind}:${card.label}`;
@@ -32,8 +33,21 @@ export function FlightSummaryModal({
   const rows = useMemo(() => sortedCards
     .filter(card => selected.has(cardKey(card)))
     .flatMap(card => card.segments.map(segment => ({ card, segment })))
-    .sort((a, b) => `${a.segment.dep_date}T${a.segment.dep_time}`.localeCompare(`${b.segment.dep_date}T${b.segment.dep_time}`)),
+    .sort((a, b) => `${a.segment.dep_date}T${a.segment.dep_time}:${a.segment.flight_number}`.localeCompare(`${b.segment.dep_date}T${b.segment.dep_time}:${b.segment.flight_number}`)),
   [selected, sortedCards]);
+  const summaryRows = useMemo<SharedSummaryRow[]>(() => rows.map(({ card, segment }) => ({
+    passenger: card.traveler_name,
+    trip_name: card.trip_name,
+    flight_number: segment.flight_number,
+    airline: segment.airline,
+    dep_airport: segment.dep_airport,
+    arr_airport: segment.arr_airport,
+    dep_date: segment.dep_date,
+    dep_time: segment.dep_time,
+    arr_date: segment.arr_date,
+    arr_time: segment.arr_time,
+  })), [rows]);
+  const dateGroups = useMemo(() => groupSummaryRows(summaryRows), [summaryRows]);
 
   function toggle(keys: string[], checked: boolean) {
     setSelected(current => {
@@ -55,18 +69,7 @@ export function FlightSummaryModal({
     try {
       setCreating(true);
       setCreateError(null);
-      const summary = await api.summaries.create(slug, rows.map(({ card, segment }) => ({
-        passenger: card.traveler_name,
-        trip_name: card.trip_name,
-        flight_number: segment.flight_number,
-        airline: segment.airline,
-        dep_airport: segment.dep_airport,
-        arr_airport: segment.arr_airport,
-        dep_date: segment.dep_date,
-        dep_time: segment.dep_time,
-        arr_date: segment.arr_date,
-        arr_time: segment.arr_time,
-      })));
+      const summary = await api.summaries.create(slug, summaryRows);
       setShareUrl(`${window.location.origin}${window.location.pathname}#/summary/${summary.slug}`);
     } catch (error: any) {
       setCreateError(error.message ?? "Could not create summary link.");
@@ -134,24 +137,28 @@ export function FlightSummaryModal({
               Select one or more flights or dates to build a summary.
             </div>
           ) : (
-            <div className="mt-4 overflow-x-auto rounded-xl border border-white/10">
-              <table className="w-full min-w-[780px] text-left text-sm">
-                <thead className="bg-black/30 text-xs font-mono text-slate-400">
-                  <tr><th className="p-3">DEPARTURE</th><th className="p-3">PASSENGER</th><th className="p-3">FLIGHT</th><th className="p-3">AIRLINE</th><th className="p-3">ROUTE</th><th className="p-3">ARRIVAL</th></tr>
-                </thead>
-                <tbody className="divide-y divide-white/10">
-                  {rows.map(({ card, segment }) => (
-                    <tr key={`${cardKey(card)}:${segment.id}`} className="bg-black/10">
-                      <td className="p-3 font-mono whitespace-nowrap">{segment.dep_date} {segment.dep_time}</td>
-                      <td className="p-3">{card.traveler_name}</td>
-                      <td className="p-3 font-mono">{segment.flight_number || "—"}</td>
-                      <td className="p-3">{segment.airline || "—"}</td>
-                      <td className="p-3 font-mono whitespace-nowrap">{segment.dep_airport} → {segment.arr_airport}</td>
-                      <td className="p-3 font-mono whitespace-nowrap">{segment.arr_date} {segment.arr_time}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+            <div className="mt-4 space-y-4">
+              {dateGroups.map(dateGroup => (
+                <div key={dateGroup.date || "date-tbd"} className="overflow-hidden rounded-xl border border-slate-700/70 bg-zinc-950">
+                  <div className="border-b border-slate-700/70 bg-black px-4 py-3 font-mono text-xs font-semibold tracking-[0.25em] text-amber-200">
+                    {dateGroup.label}
+                  </div>
+                  <div className="divide-y divide-slate-800/90">
+                    {dateGroup.flights.map(group => (
+                      <div key={group.key} className="grid gap-3 bg-zinc-950 px-4 py-3 font-mono text-sm md:grid-cols-[72px_170px_110px_110px_1fr] md:items-start">
+                        <div className="text-lg font-bold text-white">{timeDisplay(group.dep_time)}</div>
+                        <div className="uppercase tracking-wider text-slate-100">{flightDisplay(group)}</div>
+                        <div className="uppercase tracking-wider text-sky-200">{airportDisplay(group.dep_airport)} → {airportDisplay(group.arr_airport)}</div>
+                        <div className="uppercase tracking-wider text-slate-300">{airportDisplay(group.arr_airport)} {timeDisplay(group.arr_time)}</div>
+                        <div>
+                          <div className="text-xs uppercase tracking-[0.2em] text-amber-200">{group.rows.length} PAX</div>
+                          <div className="mt-1 font-sans text-slate-100">{group.rows.map(row => row.passenger).sort().join(", ")}</div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ))}
             </div>
           )}
           {rows.length > 0 && (
